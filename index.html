@@ -94,6 +94,61 @@
             text-decoration: line-through;
             color: #808080; /* Gray */
         }
+
+        /* Flashcard management buttons */
+        .flashcard-manage-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .flashcard-manage-buttons .btn-pixel {
+            flex: 1;
+        }
+
+        /* Empty flashcard state */
+        .empty-flashcard {
+            height: 256px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+        }
+
+        .empty-flashcard-text {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .empty-flashcard-subtext {
+            font-size: 14px;
+            color: #999;
+        }
+
+        /* Flashcard modal */
+        .flashcard-modal {
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .flashcard-modal-content {
+            padding: 20px;
+        }
+
+        .flashcard-modal-label {
+            font-size: 14px;
+            font-weight: bold;
+            color: #000;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .flashcard-modal-input {
+            min-height: 60px;
+            resize: vertical;
+        }
     </style>
 </head>
 <body class="min-h-screen p-4 sm:p-8">
@@ -132,19 +187,29 @@
         <div class="pixel-window">
             <div class="pixel-title-bar">
                 <span>[ FLASHCARDS ]</span>
-                <svg width="20" height="20" viewBox="0 0 20 20" class="fill-current" shape-rendering="crispEdges"><path d="M5 5 H7 V7 H5 V5 M7 5 H9 V7 H7 V5 M9 5 H11 V7 H9 V5 M11 5 H13 V7 H11 V5 M13 5 H15 V7 H13 V5 M5 7 H7 V9 H5 V7 M7 7 H9 V9 H7 V7 M11 7 H13 V9 H11 V7 M13 7 H15 V9 H13 V7 M5 9 H7 V11 H5 V9 M7 9 H9 V11 H7 V9 M11 9 H13 V11 H11 V9 M13 9 H15 V11 H13 V9 M5 11 H7 V13 H5 V11 M7 11 H9 V13 H7 V11 M9 11 H11 V13 H9 V11 M11 11 H13 V13 H11 V11 M13 11 H15 V13 H13 V11 M5 13 H7 V15 H5 V13 M7 13 H9 V15 H7 V13 M9 13 H11 V15 H9 V13 M11 13 H13 V15 H11 V13 M13 13 H15 V15 H13 V13 M9 7 H11 V9 H9 V7 M9 9 H11 V11 H9 V9"></path></svg>
+                <button id="addFlashcardBtn" class="text-white font-bold text-xs px-2 cursor-pointer hover:opacity-80" style="background: none; border: none; padding: 4px 8px;">+ ADD</button>
             </div>
             <div class="p-4">
-                <!-- The Flashcard -->
-                <div id="flashcardContainer" class="h-64 bg-white p-4 flex items-center justify-center text-center text-lg sm:text-xl border-t-2 border-l-2 border-gray-600 cursor-pointer">
-                    <div id="cardFront">What is the powerhouse of the cell?</div>
-                    <div id="cardBack" class="hidden font-bold">The Mitochondria</div>
+                <div id="emptyFlashcardState" class="empty-flashcard hidden">
+                    <div class="empty-flashcard-text">No flashcards yet!</div>
+                    <div class="empty-flashcard-subtext">Tap "+ ADD" to create one</div>
                 </div>
-                <!-- Controls -->
-                <p id="cardCounter" class="text-center my-2 text-gray-700">Card 1 / 3</p>
-                <div class="flex justify-between mt-2">
-                    <button id="flipBtn" class="btn-pixel">FLIP</button>
-                    <button id="nextBtn" class="btn-pixel">NEXT</button>
+                <div id="flashcardContent">
+                    <!-- The Flashcard -->
+                    <div id="flashcardContainer" class="h-64 bg-white p-4 flex items-center justify-center text-center text-lg sm:text-xl border-t-2 border-l-2 border-gray-600 cursor-pointer">
+                        <div id="cardFront">What is the powerhouse of the cell?</div>
+                        <div id="cardBack" class="hidden font-bold">The Mitochondria</div>
+                    </div>
+                    <!-- Controls -->
+                    <p id="cardCounter" class="text-center my-2 text-gray-700">Card 1 / 3</p>
+                    <div class="flex justify-between mt-2">
+                        <button id="flipBtn" class="btn-pixel">FLIP</button>
+                        <button id="nextBtn" class="btn-pixel">NEXT</button>
+                    </div>
+                    <div class="flashcard-manage-buttons">
+                        <button id="editFlashcardBtn" class="btn-pixel btn-green">EDIT</button>
+                        <button id="deleteFlashcardBtn" class="btn-pixel btn-red">DELETE</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -256,14 +321,18 @@
             }
 
             // --- Flashcard Logic ---
-            const flashcards = [
-                { q: 'What is the powerhouse of the cell?', a: 'The Mitochondria' },
-                { q: 'What does HTML stand for?', a: 'HyperText Markup Language' },
-                { q: 'What is 2 + 2?', a: '4' }
-            ];
+            const FLASHCARDS_STORAGE_KEY = 'pixel_study_helper_flashcards';
+            
+            // Load flashcards from localStorage or use defaults
+            let flashcards = JSON.parse(localStorage.getItem(FLASHCARDS_STORAGE_KEY) || JSON.stringify([
+                { id: 1, q: 'What is the powerhouse of the cell?', a: 'The Mitochondria' },
+                { id: 2, q: 'What does HTML stand for?', a: 'HyperText Markup Language' },
+                { id: 3, q: 'What is 2 + 2?', a: '4' }
+            ]));
             
             let currentCardIndex = 0;
             let isFlipped = false;
+            let editingFlashcardId = null;
 
             const flashcardContainer = document.getElementById('flashcardContainer');
             const cardFront = document.getElementById('cardFront');
@@ -271,8 +340,30 @@
             const cardCounter = document.getElementById('cardCounter');
             const flipBtn = document.getElementById('flipBtn');
             const nextBtn = document.getElementById('nextBtn');
+            const addFlashcardBtn = document.getElementById('addFlashcardBtn');
+            const editFlashcardBtn = document.getElementById('editFlashcardBtn');
+            const deleteFlashcardBtn = document.getElementById('deleteFlashcardBtn');
+            const emptyFlashcardState = document.getElementById('emptyFlashcardState');
+            const flashcardContent = document.getElementById('flashcardContent');
+
+            function saveFlashcards() {
+                localStorage.setItem(FLASHCARDS_STORAGE_KEY, JSON.stringify(flashcards));
+            }
+
+            function updateFlashcardDisplay() {
+                if (flashcards.length === 0) {
+                    emptyFlashcardState.classList.remove('hidden');
+                    flashcardContent.classList.add('hidden');
+                } else {
+                    emptyFlashcardState.classList.add('hidden');
+                    flashcardContent.classList.remove('hidden');
+                    loadCard();
+                }
+            }
 
             function loadCard() {
+                if (flashcards.length === 0) return;
+                
                 const card = flashcards[currentCardIndex];
                 cardFront.textContent = card.q;
                 cardBack.textContent = card.a;
@@ -285,23 +376,150 @@
             }
 
             function flipCard() {
+                if (flashcards.length === 0) return;
                 isFlipped = !isFlipped;
                 cardFront.classList.toggle('hidden');
                 cardBack.classList.toggle('hidden');
             }
 
             function nextCard() {
+                if (flashcards.length === 0) return;
                 currentCardIndex = (currentCardIndex + 1) % flashcards.length;
                 loadCard();
             }
 
+            function openFlashcardModal(flashcard = null) {
+                editingFlashcardId = flashcard ? flashcard.id : null;
+                
+                const overlay = document.createElement('div');
+                overlay.id = 'flashcardModalOverlay';
+                overlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+                
+                const messageBox = document.createElement('div');
+                messageBox.className = 'pixel-window flashcard-modal';
+
+                const titleBar = document.createElement('div');
+                titleBar.className = 'pixel-title-bar';
+                titleBar.textContent = `[ ${editingFlashcardId ? 'EDIT CARD' : 'NEW CARD'} ]`;
+
+                const content = document.createElement('div');
+                content.className = 'flashcard-modal-content';
+
+                // Question input
+                const questionLabel = document.createElement('label');
+                questionLabel.className = 'flashcard-modal-label';
+                questionLabel.textContent = 'Question:';
+                
+                const questionInput = document.createElement('textarea');
+                questionInput.id = 'flashcardQuestionInput';
+                questionInput.className = 'pixel-input flashcard-modal-input w-full mb-4';
+                questionInput.placeholder = 'Enter question...';
+                questionInput.value = flashcard ? flashcard.q : '';
+                questionInput.rows = 3;
+
+                // Answer input
+                const answerLabel = document.createElement('label');
+                answerLabel.className = 'flashcard-modal-label';
+                answerLabel.textContent = 'Answer:';
+                
+                const answerInput = document.createElement('textarea');
+                answerInput.id = 'flashcardAnswerInput';
+                answerInput.className = 'pixel-input flashcard-modal-input w-full mb-4';
+                answerInput.placeholder = 'Enter answer...';
+                answerInput.value = flashcard ? flashcard.a : '';
+                answerInput.rows = 3;
+
+                // Buttons
+                const buttonRow = document.createElement('div');
+                buttonRow.className = 'flex gap-2 mt-4';
+                
+                const cancelButton = document.createElement('button');
+                cancelButton.className = 'btn-pixel btn-red flex-1';
+                cancelButton.textContent = 'CANCEL';
+                cancelButton.addEventListener('click', () => {
+                    document.body.removeChild(overlay);
+                });
+                
+                const saveButton = document.createElement('button');
+                saveButton.className = 'btn-pixel btn-green flex-1';
+                saveButton.textContent = 'SAVE';
+                saveButton.addEventListener('click', () => {
+                    const question = questionInput.value.trim();
+                    const answer = answerInput.value.trim();
+                    
+                    if (question === '' || answer === '') {
+                        showPixelMessage('Error', 'Both question and answer are required!');
+                        return;
+                    }
+                    
+                    if (editingFlashcardId) {
+                        // Edit existing
+                        const index = flashcards.findIndex(card => card.id === editingFlashcardId);
+                        if (index !== -1) {
+                            flashcards[index].q = question;
+                            flashcards[index].a = answer;
+                        }
+                    } else {
+                        // Add new
+                        const newCard = {
+                            id: Date.now(),
+                            q: question,
+                            a: answer
+                        };
+                        flashcards.push(newCard);
+                        if (flashcards.length === 1) {
+                            currentCardIndex = 0;
+                        }
+                    }
+                    
+                    saveFlashcards();
+                    updateFlashcardDisplay();
+                    document.body.removeChild(overlay);
+                });
+
+                buttonRow.appendChild(cancelButton);
+                buttonRow.appendChild(saveButton);
+                
+                content.appendChild(questionLabel);
+                content.appendChild(questionInput);
+                content.appendChild(answerLabel);
+                content.appendChild(answerInput);
+                content.appendChild(buttonRow);
+                
+                messageBox.appendChild(titleBar);
+                messageBox.appendChild(content);
+                overlay.appendChild(messageBox);
+                document.body.appendChild(overlay);
+            }
+
+            function deleteFlashcard() {
+                if (flashcards.length <= 1) {
+                    showPixelMessage('Error', 'You must have at least one flashcard!');
+                    return;
+                }
+                
+                flashcards.splice(currentCardIndex, 1);
+                if (currentCardIndex >= flashcards.length) {
+                    currentCardIndex = Math.max(0, flashcards.length - 1);
+                }
+                saveFlashcards();
+                updateFlashcardDisplay();
+            }
+
             // Event Listeners
             flipBtn.addEventListener('click', flipCard);
-            flashcardContainer.addEventListener('click', flipCard); // Allow clicking the card itself
+            flashcardContainer.addEventListener('click', flipCard);
             nextBtn.addEventListener('click', nextCard);
+            addFlashcardBtn.addEventListener('click', () => openFlashcardModal());
+            editFlashcardBtn.addEventListener('click', () => {
+                if (flashcards.length > 0) {
+                    openFlashcardModal(flashcards[currentCardIndex]);
+                }
+            });
+            deleteFlashcardBtn.addEventListener('click', deleteFlashcard);
 
-            // Initial card load
-            loadCard();
+            // Initial setup
+            updateFlashcardDisplay();
 
             // --- Custom Message Box (to avoid alert()) ---
             function showPixelMessage(title, message) {
