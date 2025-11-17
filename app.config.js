@@ -38,7 +38,9 @@ export default {
       eas: {
         projectId: "pixel-study-helper"
       }
-    }
+    },
+    // Explicitly indicate this is a managed workflow project
+    scheme: "pixel-study-helper"
   }
 };
 

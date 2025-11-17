@@ -18,7 +18,11 @@
     },
     "production": {
       "ios": {
-        "simulator": false
+        "simulator": false,
+        "buildConfiguration": "Release"
+      },
+      "env": {
+        "EXPO_NO_GIT_STATUS": "1"
       }
     }
   },
