@@ -2,10 +2,12 @@
   "name": "pixel-study-helper",
   "version": "1.0.0",
   "description": "A retro pixel art styled study helper application with to-do lists, flashcards, and resources",
-  "main": "index.html",
+  "main": "node_modules/expo/AppEntry.js",
   "scripts": {
-    "start": "npx http-server -p 8080 -o",
-    "dev": "npx http-server -p 8080 -o"
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
   },
   "repository": {
     "type": "git",
@@ -21,9 +23,16 @@
   ],
   "author": "jose508773",
   "license": "MIT",
-  "devDependencies": {},
   "dependencies": {
-    "react-native": "^0.76.0"
-  }
+    "expo": "~51.0.0",
+    "expo-status-bar": "~1.12.1",
+    "react": "18.2.0",
+    "react-native": "0.74.5",
+    "react-native-web": "~0.19.10"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0"
+  },
+  "private": true
 }
 
