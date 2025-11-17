@@ -1,0 +1,27 @@
+{
+  "name": "pixel-study-helper",
+  "version": "1.0.0",
+  "description": "A retro pixel art styled study helper application with to-do lists, flashcards, and resources",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server -p 8080 -o",
+    "dev": "npx http-server -p 8080 -o"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jose508773/pixel-study-helper.git"
+  },
+  "keywords": [
+    "study",
+    "helper",
+    "pixel-art",
+    "flashcards",
+    "todo",
+    "education"
+  ],
+  "author": "jose508773",
+  "license": "MIT",
+  "devDependencies": {},
+  "dependencies": {}
+}
+
