@@ -13,14 +13,15 @@ import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TASKS_STORAGE_KEY = '@pixel_study_helper:tasks';
+const FLASHCARDS_STORAGE_KEY = '@pixel_study_helper:flashcards';
 
 export default function App() {
   const [tasks, setTasks] = useState([]);
   const [taskInput, setTaskInput] = useState('');
-  const [flashcards] = useState([
-    { q: 'What is the powerhouse of the cell?', a: 'The Mitochondria' },
-    { q: 'What does HTML stand for?', a: 'HyperText Markup Language' },
-    { q: 'What is 2 + 2?', a: '4' }
+  const [flashcards, setFlashcards] = useState([
+    { id: 1, q: 'What is the powerhouse of the cell?', a: 'The Mitochondria' },
+    { id: 2, q: 'What does HTML stand for?', a: 'HyperText Markup Language' },
+    { id: 3, q: 'What is 2 + 2?', a: '4' }
   ]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -28,10 +29,16 @@ export default function App() {
   const [modalTitle, setModalTitle] = useState('');
   const [modalMessage, setModalMessage] = useState('');
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  
+  // Flashcard management states
+  const [showFlashcardModal, setShowFlashcardModal] = useState(false);
+  const [flashcardQuestion, setFlashcardQuestion] = useState('');
+  const [flashcardAnswer, setFlashcardAnswer] = useState('');
+  const [editingFlashcardId, setEditingFlashcardId] = useState(null);
 
-  // Load tasks from storage on mount
+  // Load tasks and flashcards from storage on mount
   useEffect(() => {
-    loadTasks().then(() => {
+    Promise.all([loadTasks(), loadFlashcards()]).then(() => {
       setIsInitialLoad(false);
     });
   }, []);
@@ -46,6 +53,17 @@ export default function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks]);
+
+  // Save flashcards to storage whenever they change (but not on initial load)
+  useEffect(() => {
+    if (!isInitialLoad) {
+      const timer = setTimeout(() => {
+        saveFlashcards();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flashcards]);
 
   const loadTasks = async () => {
     try {
@@ -63,6 +81,30 @@ export default function App() {
       await AsyncStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
     } catch (error) {
       console.error('Error saving tasks:', error);
+    }
+  };
+
+  const loadFlashcards = async () => {
+    try {
+      const storedFlashcards = await AsyncStorage.getItem(FLASHCARDS_STORAGE_KEY);
+      if (storedFlashcards !== null) {
+        const parsed = JSON.parse(storedFlashcards);
+        setFlashcards(parsed);
+        // Ensure currentCardIndex is valid
+        if (parsed.length > 0 && currentCardIndex >= parsed.length) {
+          setCurrentCardIndex(0);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading flashcards:', error);
+    }
+  };
+
+  const saveFlashcards = async () => {
+    try {
+      await AsyncStorage.setItem(FLASHCARDS_STORAGE_KEY, JSON.stringify(flashcards));
+    } catch (error) {
+      console.error('Error saving flashcards:', error);
     }
   };
 
@@ -91,8 +133,10 @@ export default function App() {
   };
 
   const nextCard = () => {
-    setCurrentCardIndex((currentCardIndex + 1) % flashcards.length);
-    setIsFlipped(false);
+    if (flashcards.length > 0) {
+      setCurrentCardIndex((currentCardIndex + 1) % flashcards.length);
+      setIsFlipped(false);
+    }
   };
 
   const showPixelMessage = (title, message) => {
@@ -101,7 +145,73 @@ export default function App() {
     setShowModal(true);
   };
 
-  const currentCard = flashcards[currentCardIndex];
+  const openFlashcardModal = (flashcard = null) => {
+    if (flashcard) {
+      setEditingFlashcardId(flashcard.id);
+      setFlashcardQuestion(flashcard.q);
+      setFlashcardAnswer(flashcard.a);
+    } else {
+      setEditingFlashcardId(null);
+      setFlashcardQuestion('');
+      setFlashcardAnswer('');
+    }
+    setShowFlashcardModal(true);
+  };
+
+  const closeFlashcardModal = () => {
+    setShowFlashcardModal(false);
+    setEditingFlashcardId(null);
+    setFlashcardQuestion('');
+    setFlashcardAnswer('');
+  };
+
+  const saveFlashcard = () => {
+    const question = flashcardQuestion.trim();
+    const answer = flashcardAnswer.trim();
+
+    if (question === '' || answer === '') {
+      showPixelMessage('Error', 'Both question and answer are required!');
+      return;
+    }
+
+    if (editingFlashcardId) {
+      // Edit existing flashcard
+      setFlashcards(flashcards.map(card =>
+        card.id === editingFlashcardId
+          ? { ...card, q: question, a: answer }
+          : card
+      ));
+    } else {
+      // Add new flashcard
+      const newCard = {
+        id: Date.now(),
+        q: question,
+        a: answer
+      };
+      setFlashcards([...flashcards, newCard]);
+      // If this is the first card, set it as current
+      if (flashcards.length === 0) {
+        setCurrentCardIndex(0);
+      }
+    }
+    closeFlashcardModal();
+  };
+
+  const deleteFlashcard = (id) => {
+    if (flashcards.length <= 1) {
+      showPixelMessage('Error', 'You must have at least one flashcard!');
+      return;
+    }
+    const newFlashcards = flashcards.filter(card => card.id !== id);
+    setFlashcards(newFlashcards);
+    // Adjust current index if needed
+    if (currentCardIndex >= newFlashcards.length) {
+      setCurrentCardIndex(Math.max(0, newFlashcards.length - 1));
+    }
+    setIsFlipped(false);
+  };
+
+  const currentCard = flashcards.length > 0 ? flashcards[currentCardIndex] : null;
 
   return (
     <View style={styles.container}>
@@ -163,28 +273,54 @@ export default function App() {
         <View style={styles.pixelWindow}>
           <View style={styles.pixelTitleBar}>
             <Text style={styles.titleBarText}>[ FLASHCARDS ]</Text>
+            <TouchableOpacity onPress={() => openFlashcardModal()}>
+              <Text style={styles.addButtonText}>+ ADD</Text>
+            </TouchableOpacity>
           </View>
           <View style={styles.windowContent}>
-            <TouchableOpacity 
-              style={styles.flashcardContainer}
-              onPress={flipCard}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.flashcardText}>
-                {isFlipped ? currentCard.a : currentCard.q}
-              </Text>
-            </TouchableOpacity>
-            <Text style={styles.cardCounter}>
-              Card {currentCardIndex + 1} / {flashcards.length}
-            </Text>
-            <View style={styles.flashcardControls}>
-              <TouchableOpacity style={styles.btnPixel} onPress={flipCard}>
-                <Text style={styles.btnText}>FLIP</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.btnPixel} onPress={nextCard}>
-                <Text style={styles.btnText}>NEXT</Text>
-              </TouchableOpacity>
-            </View>
+            {flashcards.length === 0 ? (
+              <View style={styles.emptyFlashcardContainer}>
+                <Text style={styles.emptyFlashcardText}>No flashcards yet!</Text>
+                <Text style={styles.emptyFlashcardSubtext}>Tap "+ ADD" to create one</Text>
+              </View>
+            ) : (
+              <>
+                <TouchableOpacity 
+                  style={styles.flashcardContainer}
+                  onPress={flipCard}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.flashcardText}>
+                    {isFlipped ? currentCard.a : currentCard.q}
+                  </Text>
+                </TouchableOpacity>
+                <Text style={styles.cardCounter}>
+                  Card {currentCardIndex + 1} / {flashcards.length}
+                </Text>
+                <View style={styles.flashcardControls}>
+                  <TouchableOpacity style={styles.btnPixel} onPress={flipCard}>
+                    <Text style={styles.btnText}>FLIP</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.btnPixel} onPress={nextCard}>
+                    <Text style={styles.btnText}>NEXT</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.flashcardManageButtons}>
+                  <TouchableOpacity 
+                    style={[styles.btnPixel, styles.btnGreen, styles.manageBtn]}
+                    onPress={() => openFlashcardModal(currentCard)}
+                  >
+                    <Text style={styles.btnText}>EDIT</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.btnPixel, styles.btnRed, styles.manageBtn]}
+                    onPress={() => deleteFlashcard(currentCard.id)}
+                  >
+                    <Text style={styles.btnText}>DELETE</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
         </View>
 
@@ -243,6 +379,58 @@ export default function App() {
               >
                 <Text style={styles.btnText}>OK</Text>
               </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal for creating/editing flashcards */}
+      <Modal
+        visible={showFlashcardModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeFlashcardModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.pixelWindow, styles.flashcardModalWindow]}>
+            <View style={styles.pixelTitleBar}>
+              <Text style={styles.titleBarText}>
+                [ {editingFlashcardId ? 'EDIT CARD' : 'NEW CARD'} ]
+              </Text>
+            </View>
+            <View style={styles.flashcardModalContent}>
+              <Text style={styles.flashcardModalLabel}>Question:</Text>
+              <TextInput
+                style={[styles.pixelInput, styles.flashcardInput]}
+                placeholder="Enter question..."
+                placeholderTextColor="#666"
+                value={flashcardQuestion}
+                onChangeText={setFlashcardQuestion}
+                multiline
+              />
+              <Text style={[styles.flashcardModalLabel, { marginTop: 16 }]}>Answer:</Text>
+              <TextInput
+                style={[styles.pixelInput, styles.flashcardInput]}
+                placeholder="Enter answer..."
+                placeholderTextColor="#666"
+                value={flashcardAnswer}
+                onChangeText={setFlashcardAnswer}
+                multiline
+              />
+              <View style={styles.flashcardModalButtons}>
+                <TouchableOpacity 
+                  style={[styles.btnPixel, styles.btnRed, styles.modalButton]}
+                  onPress={closeFlashcardModal}
+                >
+                  <Text style={styles.btnText}>CANCEL</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.btnPixel, styles.btnGreen, styles.modalButton]}
+                  onPress={saveFlashcard}
+                >
+                  <Text style={styles.btnText}>SAVE</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
@@ -458,6 +646,70 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
     color: '#000',
+  },
+  addButtonText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+    fontSize: 12,
+    paddingHorizontal: 8,
+  },
+  emptyFlashcardContainer: {
+    height: 200,
+    backgroundColor: '#ffffff',
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+    borderTopColor: '#404040',
+    borderLeftColor: '#404040',
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyFlashcardText: {
+    fontSize: 18,
+    textAlign: 'center',
+    color: '#666',
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  emptyFlashcardSubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+    color: '#999',
+  },
+  flashcardManageButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    gap: 8,
+  },
+  manageBtn: {
+    flex: 1,
+  },
+  flashcardModalWindow: {
+    maxWidth: 400,
+    width: '90%',
+  },
+  flashcardModalContent: {
+    padding: 20,
+  },
+  flashcardModalLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 8,
+  },
+  flashcardInput: {
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+  flashcardModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    gap: 8,
+  },
+  modalButton: {
+    flex: 1,
   },
 });
 
