@@ -16,17 +16,28 @@ export default {
     ],
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.joseochoa.pixelstudyhelper"
+      bundleIdentifier: "com.joseochoa.pixelstudyhelper",
+      buildNumber: "1",
+      requireFullScreen: false,
+      infoPlist: {
+        NSUserTrackingUsageDescription: "This app does not track users across apps or websites."
+      }
     },
     android: {
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#DEF"
       },
-      package: "com.joseochoa.pixelstudyhelper"
+      package: "com.joseochoa.pixelstudyhelper",
+      versionCode: 1
     },
     web: {
-      favicon: "./assets/favicon.png"
+      favicon: "./assets/favicon.svg"
+    },
+    extra: {
+      eas: {
+        projectId: "pixel-study-helper"
+      }
     }
   }
 };

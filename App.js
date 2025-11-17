@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -6,11 +6,13 @@ import {
   TextInput, 
   TouchableOpacity, 
   ScrollView,
-  Alert,
   Modal,
   Platform
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const TASKS_STORAGE_KEY = '@pixel_study_helper:tasks';
 
 export default function App() {
   const [tasks, setTasks] = useState([]);
@@ -25,6 +27,44 @@ export default function App() {
   const [showModal, setShowModal] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
   const [modalMessage, setModalMessage] = useState('');
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // Load tasks from storage on mount
+  useEffect(() => {
+    loadTasks().then(() => {
+      setIsInitialLoad(false);
+    });
+  }, []);
+
+  // Save tasks to storage whenever they change (but not on initial load)
+  useEffect(() => {
+    if (!isInitialLoad) {
+      const timer = setTimeout(() => {
+        saveTasks();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks]);
+
+  const loadTasks = async () => {
+    try {
+      const storedTasks = await AsyncStorage.getItem(TASKS_STORAGE_KEY);
+      if (storedTasks !== null) {
+        setTasks(JSON.parse(storedTasks));
+      }
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+    }
+  };
+
+  const saveTasks = async () => {
+    try {
+      await AsyncStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
+    } catch (error) {
+      console.error('Error saving tasks:', error);
+    }
+  };
 
   const addTask = () => {
     const taskText = taskInput.trim();
